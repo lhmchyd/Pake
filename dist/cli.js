@@ -425,7 +425,7 @@ async function combineFiles(files, output) {
 }
 
 async function mergeConfig(url, options, tauriConf) {
-    const { width, height, fullscreen, hideTitleBar, alwaysOnTop, appVersion, darkMode, disabledWebShortcuts, activationShortcut, userAgent, showSystemTray, systemTrayIcon, useLocalFile, identifier, name, resizable = true, inject, proxyUrl, installerLanguage, } = options;
+    const { width, height, fullscreen, hideTitleBar, alwaysOnTop, appVersion, darkMode, disabledWebShortcuts, activationShortcut, userAgent, showSystemTray, systemTrayIcon, useLocalFile, identifier, name, resizable = true, inject = [], proxyUrl, installerLanguage, } = options;
     const { platform } = process;
     // Set Windows parameters.
     const tauriConfWindowOptions = {
@@ -568,19 +568,20 @@ async function mergeConfig(url, options, tauriConf) {
     delete tauriConf.app.trayIcon;
     const injectFilePath = path.join(npmDirectory, `src-tauri/src/inject/custom.js`);
     // inject js or css files
-    if (inject?.length > 0) {
-        if (!inject.every(item => item.endsWith('.css') || item.endsWith('.js'))) {
+    if (inject && inject.length > 0) {
+        const injectFiles = Array.isArray(inject) ? inject : [inject];
+        if (!injectFiles.every(item => item.endsWith('.css') || item.endsWith('.js'))) {
             logger.error('The injected file must be in either CSS or JS format.');
             return;
         }
-        const files = inject.map(filepath => (path.isAbsolute(filepath) ? filepath : path.join(process.cwd(), filepath)));
+        const files = injectFiles.map(filepath => (path.isAbsolute(filepath) ? filepath : path.join(process.cwd(), filepath)));
         tauriConf.pake.inject = files;
         await combineFiles(files, injectFilePath);
-    }
-    else {
+    } else {
         tauriConf.pake.inject = [];
         await fsExtra.writeFile(injectFilePath, '');
     }
+
     tauriConf.pake.proxy_url = proxyUrl || '';
     // Save config file.
     const platformConfigPaths = {
@@ -977,7 +978,7 @@ program
     .option('--fullscreen', 'Start in full screen', DEFAULT_PAKE_OPTIONS.fullscreen)
     .option('--hide-title-bar', 'For Mac, hide title bar', DEFAULT_PAKE_OPTIONS.hideTitleBar)
     .option('--multi-arch', 'For Mac, both Intel and M1', DEFAULT_PAKE_OPTIONS.multiArch)
-    .option('--inject <url>', 'Injection of .js or .css files', DEFAULT_PAKE_OPTIONS.inject)
+    .option('--inject [files...]', 'Injection of .js or .css files', (value) => [value].flat(), DEFAULT_PAKE_OPTIONS.inject)
     .option('--debug', 'Debug build and more output', DEFAULT_PAKE_OPTIONS.debug)
     .addOption(new Option('--proxy-url <url>', 'Proxy URL for all network requests').default(DEFAULT_PAKE_OPTIONS.proxyUrl).hideHelp())
     .addOption(new Option('--user-agent <string>', 'Custom user agent').default(DEFAULT_PAKE_OPTIONS.userAgent).hideHelp())
